@@ -1,0 +1,47 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: repopilot-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    container_name: repopilot-backend
+    env_file:
+      - ./backend/.env.example
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      FRONTEND_URL: http://localhost:5173
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/app/data/chroma
+      - repo_data:/app/data/repos
+      - hf_cache:/root/.cache/huggingface
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8000
+    container_name: repopilot-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  ollama_models:
+  chroma_data:
+  repo_data:
+  hf_cache:
